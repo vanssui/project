@@ -22,6 +22,14 @@ export function applyTheme(theme, { themeToggle, themeLabel, stateRef, persist =
   const next = isValidTheme(theme) ? theme : 'dark';
   document.body.setAttribute('data-theme', next);
   document.documentElement.style.colorScheme = next;
+  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeColorMeta) {
+    themeColorMeta.setAttribute('content', next === 'light' ? '#edf2f7' : '#0b0a0a');
+  }
+  const appleStatusBarMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+  if (appleStatusBarMeta) {
+    appleStatusBarMeta.setAttribute('content', next === 'light' ? 'default' : 'black-translucent');
+  }
   themeToggle.checked = next === 'light';
   themeLabel.textContent = next === 'light' ? 'DAY MODE' : 'DARK MODE';
   stateRef.currentTheme = next;
