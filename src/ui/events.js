@@ -10,17 +10,17 @@ export function bindEvents(handlers) {
   dom.taskForm?.addEventListener('submit', submitTask);
   dom.exportBtn.addEventListener('click', handlers.onExport);
   dom.clearArchiveBtn.addEventListener('click', handlers.onClearArchive);
+  dom.clearOlderArchiveBtn?.addEventListener('click', handlers.onClearArchiveEarlier);
   dom.telegramBtn?.addEventListener('click', handlers.onOpenTelegram);
   dom.todayBtn?.addEventListener('click', handlers.onScrollToToday);
   dom.compactToggleBtn?.addEventListener('click', handlers.onToggleCompact);
   dom.clearSearchBtn?.addEventListener('click', handlers.onClearSearch);
   dom.modalBackdrop.addEventListener('click', () => handlers.onCloseConfirm(null));
   dom.editModalBackdrop.addEventListener('click', () => handlers.onCloseEdit(null));
-  dom.previewModalBackdrop.addEventListener('click', () => handlers.onClosePreview(null));
+  dom.taskModalBackdrop.addEventListener('click', () => handlers.onCloseTask(null));
   dom.dayModalBackdrop.addEventListener('click', () => handlers.onCloseDay(null));
   dom.editCancelBtn.addEventListener('click', () => handlers.onCloseEdit(null));
   dom.editSaveBtn.addEventListener('click', handlers.onSubmitEdit);
-  dom.previewCloseBtn.addEventListener('click', () => handlers.onClosePreview(null));
   dom.dayModalCloseBtn.addEventListener('click', () => handlers.onCloseDay(null));
 
   dom.taskInput.addEventListener('keydown', (event) => {
@@ -30,6 +30,7 @@ export function bindEvents(handlers) {
     }
   });
   dom.taskInput.addEventListener('input', handlers.onTaskInputChange);
+  dom.taskPriSelect?.addEventListener('change', handlers.onTaskPriorityChange);
   dom.taskSearchInput?.addEventListener('input', (event) => {
     handlers.onSearchChange(event.target.value);
   });
@@ -53,7 +54,7 @@ export function bindEvents(handlers) {
   document.addEventListener('keydown', (event) => {
     handleFocusTrap(event);
     if (event.key !== 'Escape') return;
-    if (dom.previewModalRoot.classList.contains('show')) return handlers.onClosePreview(null);
+    if (dom.taskModalRoot.classList.contains('show')) return handlers.onCloseTask(null);
     if (dom.editModalRoot.classList.contains('show')) return handlers.onCloseEdit(null);
     if (dom.dayModalRoot.classList.contains('show')) return handlers.onCloseDay(null);
     if (dom.modalRoot.classList.contains('show')) return handlers.onCloseConfirm(null);

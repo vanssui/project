@@ -2,15 +2,30 @@ import { categories, priorities } from '../shared/config.js';
 import { generateId } from '../shared/utils.js';
 import { getCurrentDayId, isValidDay } from './date.js';
 
+function inferCreatedAt(rawCreatedAt, id, fallback = Date.now()) {
+  if (typeof rawCreatedAt === 'number' && Number.isFinite(rawCreatedAt) && rawCreatedAt > 0) {
+    return rawCreatedAt;
+  }
+
+  const derivedFromId = Math.floor(Number(id) / 1000);
+  if (Number.isFinite(derivedFromId) && derivedFromId > 946684800000 && derivedFromId < Date.now() + 86400000) {
+    return derivedFromId;
+  }
+
+  return fallback;
+}
+
 export function createTask({ title, day, cat, pri }) {
+  const id = generateId();
   return {
-    id: generateId(),
+    id,
     title,
     day: isValidDay(day) ? day : getCurrentDayId(),
     cat: categories.includes(cat) ? cat : 'Дом',
     pri: priorities.includes(pri) ? pri : 'normal',
     done: false,
-    completedAt: null
+    completedAt: null,
+    createdAt: inferCreatedAt(null, id)
   };
 }
 
@@ -31,6 +46,7 @@ export function normalizeTask(source = {}, fallbackDay = getCurrentDayId(), inde
   } else if (done) {
     completedAt = Date.now() - index;
   }
+  const createdAt = inferCreatedAt(raw.createdAt, id, completedAt || Date.now() - index);
 
   return {
     id,
@@ -39,6 +55,7 @@ export function normalizeTask(source = {}, fallbackDay = getCurrentDayId(), inde
     cat: categories.includes(raw.cat) ? raw.cat : 'Дом',
     pri: priorities.includes(raw.pri) ? raw.pri : 'normal',
     done,
-    completedAt
+    completedAt,
+    createdAt
   };
 }

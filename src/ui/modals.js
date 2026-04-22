@@ -7,12 +7,12 @@ import {
   restoreFocus
 } from './focus-trap.js';
 import { setText } from '../shared/utils.js';
-import { getDayName } from '../core/date.js';
+import { formatTaskAgeLabel, getDayName } from '../core/date.js';
 import { state } from '../store/state.js';
 
 let confirmResolver = null;
 let editResolver = null;
-let previewResolver = null;
+let taskResolver = null;
 let dayResolver = null;
 let adapters = {
   getDayTasks: () => [],
@@ -104,22 +104,63 @@ export function closeEditModal(value = null) {
   resolver?.(value);
 }
 
-export function openPreviewModal(title) {
-  if (previewResolver) return Promise.resolve(null);
+function createTaskMetaChip(text, className = '') {
+  const chip = document.createElement('span');
+  chip.className = `task-modal-chip ${className}`.trim();
+  chip.textContent = text;
+  return chip;
+}
+
+export function openTaskModal(task) {
+  if (taskResolver) return Promise.resolve(null);
 
   return new Promise((resolve) => {
     rememberFocus();
-    previewResolver = resolve;
-    setText(dom.previewModalText, title || '');
-    showModal(dom.previewModalRoot);
-    setTimeout(() => dom.previewCloseBtn.focus(), 20);
+    taskResolver = resolve;
+    setText(dom.taskModalKicker, 'Задача');
+    setText(dom.taskModalTitle, task?.title || 'Карточка задачи');
+    setText(dom.taskModalText, 'Выбери, что сделать с этой задачей.');
+
+    dom.taskModalMeta.replaceChildren(
+      createTaskMetaChip(getDayName(task?.day), 'day'),
+      createTaskMetaChip(task?.cat || 'Без категории', 'cat'),
+      createTaskMetaChip(formatTaskAgeLabel(task?.createdAt), 'age'),
+      createTaskMetaChip(task?.pri === 'urgent' ? 'Срочно' : 'Обычный приоритет', task?.pri === 'urgent' ? 'urgent' : '')
+    );
+
+    dom.taskModalActions.replaceChildren();
+
+    const actions = [
+      { label: 'Закрыть', value: null, className: 'ghost' },
+      { label: 'Повторить', value: 'duplicate', className: 'ghost' },
+      { label: 'Редактировать', value: 'edit', className: 'ghost' },
+      { label: 'Удалить', value: 'delete', className: 'danger' },
+      { label: 'Выполнено', value: 'done', className: 'primary' }
+    ];
+
+    actions.forEach((item) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `modal-btn ${item.className}`;
+      button.textContent = item.label;
+      button.addEventListener('click', () => closeTaskModal(item.value));
+      dom.taskModalActions.appendChild(button);
+    });
+
+    showModal(dom.taskModalRoot);
+    const primary = dom.taskModalActions.querySelector('.primary') || dom.taskModalActions.querySelector('.modal-btn');
+    setTimeout(() => primary?.focus(), 20);
   });
 }
 
-export function closePreviewModal(value = null) {
-  hideModal(dom.previewModalRoot);
-  const resolver = previewResolver;
-  previewResolver = null;
+export function closeTaskModal(value = null) {
+  hideModal(dom.taskModalRoot);
+  const resolver = taskResolver;
+  taskResolver = null;
+  setTimeout(() => {
+    dom.taskModalMeta.replaceChildren();
+    dom.taskModalActions.replaceChildren();
+  }, 120);
   restoreFocus();
   resolver?.(value);
 }

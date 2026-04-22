@@ -1,3 +1,5 @@
+import { isSameCalendarDay, isYesterday } from './date.js';
+
 export function addTask(tasks, task) {
   return [...tasks, task];
 }
@@ -45,6 +47,14 @@ export function moveTaskToDay(tasks, taskId, day) {
 
 export function clearArchive(tasks) {
   const next = tasks.filter((task) => !task.done);
+  return { changed: next.length !== tasks.length, tasks: next };
+}
+
+export function clearArchiveEarlier(tasks, now = new Date()) {
+  const next = tasks.filter((task) => {
+    if (!task.done) return true;
+    return isSameCalendarDay(task.completedAt, now) || isYesterday(task.completedAt, now);
+  });
   return { changed: next.length !== tasks.length, tasks: next };
 }
 

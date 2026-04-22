@@ -1,5 +1,5 @@
 import { categories, daysShort } from '../shared/config.js';
-import { passesTaskView } from './task-selectors.js';
+import { compareTasksForDay, passesTaskView } from './task-selectors.js';
 
 export function buildStats(tasks, activeFilter, searchQuery = '') {
   const byCat = Object.fromEntries(categories.map((cat) => [cat, { total: 0, done: 0 }]));
@@ -27,6 +27,11 @@ export function buildStats(tasks, activeFilter, searchQuery = '') {
       }
     }
   }
+
+  daysShort.forEach((day) => {
+    activeByDay[day].sort(compareTasksForDay);
+    visibleActiveByDay[day].sort(compareTasksForDay);
+  });
 
   return {
     total: tasks.length,

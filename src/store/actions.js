@@ -3,12 +3,14 @@ import {
   addTask as addTaskOp,
   appendImportedTasks,
   clearArchive as clearArchiveOp,
+  clearArchiveEarlier as clearArchiveEarlierOp,
   deleteTask as deleteTaskOp,
   moveTaskToDay,
   replaceTasks,
   toggleTaskDone,
   updateTaskTitle
 } from '../core/task-ops.js';
+import { groupArchiveTasks } from '../core/archive.js';
 import { getVisibleDayTasks } from '../core/task-selectors.js';
 import { bindStorageFlush, loadTasks, scheduleSaveTasks, subscribeToStorage } from '../services/storage.js';
 import { exportTasksToFile, readTasksFile } from '../services/transfer.js';
@@ -20,11 +22,11 @@ import {
   closeConfirmModal,
   closeDayModal,
   closeEditModal,
-  closePreviewModal,
+  closeTaskModal,
   openConfirmModal,
   openDayModal,
   openEditModal,
-  openPreviewModal,
+  openTaskModal,
   refreshDayModal
 } from '../ui/modals.js';
 import { renderApp } from '../ui/render.js';
@@ -36,6 +38,22 @@ const pendingToggleIds = new Set();
 
 function tasksSignature(tasks) {
   return JSON.stringify(tasks);
+}
+
+function syncPresetUi() {
+  const currentCategory = dom.taskCatSelect?.value || 'Дом';
+  const currentPriority = dom.taskPriSelect?.value || 'normal';
+  dom.presetButtons.forEach((button) => {
+    const isCategoryButton = Boolean(button.dataset.cat);
+    const isPriorityButton = Boolean(button.dataset.pri);
+    const isActive = isCategoryButton
+      ? button.dataset.cat === currentCategory
+      : isPriorityButton
+        ? button.dataset.pri === currentPriority
+        : false;
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
+  });
 }
 
 function syncFilterButtons(filterValue) {
@@ -81,6 +99,7 @@ function persistAndRender() {
   refreshDayModal();
   syncAddButtonState();
   syncSearchUi();
+  syncPresetUi();
   syncCompactUi();
 }
 
@@ -107,6 +126,7 @@ export function initializeState() {
   syncFilterButtons(state.activeFilter);
   syncAddButtonState();
   syncSearchUi();
+  syncPresetUi();
   syncCompactUi();
   subscribeToStorage((nextTasks) => {
     if (tasksSignature(nextTasks) === tasksSignature(state.tasks)) return;
@@ -140,6 +160,7 @@ export async function addTask() {
   setTasks(addTaskOp(state.tasks, task));
   markRecentTask(task.id);
   dom.taskInput.value = '';
+  dom.taskPriSelect.value = 'normal';
   persistAndRender();
   focusTaskInput();
   showToast('Задача добавлена.', 'success', 'Добавлено');
@@ -236,10 +257,30 @@ export async function editTask(taskId) {
   showToast('Задача обновлена.', 'success', 'Сохранено');
 }
 
-export function previewTask(taskId) {
+export async function openTaskSheet(taskId) {
   const task = state.tasks.find((item) => item.id === taskId);
   if (!task) return;
-  openPreviewModal(task.title);
+  if (dom.dayModalRoot.classList.contains('show')) {
+    state.openedDayModalId = null;
+    closeDayModal(null);
+  }
+  const action = await openTaskModal(task);
+  if (!action) return;
+  if (action === 'done') {
+    await toggleTask(taskId);
+    return;
+  }
+  if (action === 'duplicate') {
+    duplicateTask(taskId);
+    return;
+  }
+  if (action === 'edit') {
+    await editTask(taskId);
+    return;
+  }
+  if (action === 'delete') {
+    await deleteTask(taskId);
+  }
 }
 
 export function startLongPress(taskId) {
@@ -281,6 +322,32 @@ export async function clearArchive() {
   setTasks(result.tasks);
   persistAndRender();
   showToast('Архив очищен.', 'success', 'Готово');
+}
+
+export async function clearArchiveEarlier() {
+  const groups = groupArchiveTasks(state.tasks.filter((task) => task.done));
+  const earlierCount = groups.earlier.length;
+  if (!earlierCount) {
+    showToast('В старом архиве пока нечего чистить.', 'info', 'Архив');
+    return;
+  }
+
+  const confirmed = await openConfirmModal({
+    kicker: 'Архив',
+    title: 'Очистить старые записи?',
+    text: `Будут удалены только записи из блока "Ранее": ${earlierCount}. Сегодня и вчера останутся.`,
+    buttons: [
+      { label: 'Отмена', value: false, className: 'ghost' },
+      { label: 'Очистить старое', value: true, className: 'danger' }
+    ]
+  });
+
+  if (!confirmed) return;
+  const result = clearArchiveEarlierOp(state.tasks);
+  if (!result.changed) return;
+  setTasks(result.tasks);
+  persistAndRender();
+  showToast('Старые записи архива удалены.', 'success', 'Архив');
 }
 
 export function applyFilter(filterValue) {
@@ -350,6 +417,10 @@ export function handleTaskInputChange() {
   syncAddButtonState();
 }
 
+export function handleTaskPriorityChange() {
+  syncPresetUi();
+}
+
 export function handleSearchChange(value) {
   const nextQuery = normalizeSearchQuery(value);
   if (state.searchQuery === nextQuery) {
@@ -378,12 +449,25 @@ export function clearSearch() {
 export function scrollToToday() {
   const todayCard = dom.grid.querySelector(`.day-card[data-day="${state.currentDayId}"]`);
   if (!todayCard) return;
+  dom.todayBtn?.classList.add('active', 'is-flashing');
   todayCard.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
   todayCard.classList.add('is-spotlit');
   todayCard.focus({ preventScroll: true });
   window.setTimeout(() => {
     todayCard.classList.remove('is-spotlit');
+    dom.todayBtn?.classList.remove('active', 'is-flashing');
   }, 1400);
+}
+
+export function focusUrgentToday() {
+  if (state.activeFilter !== 'urgent') {
+    setFilter('urgent');
+    syncFilterButtons('urgent');
+    renderApp();
+    refreshDayModal();
+  }
+  scrollToToday();
+  showToast('Фокус на срочных задачах текущего дня.', 'info', 'Фокус');
 }
 
 export function toggleCompactMode() {
@@ -401,7 +485,7 @@ export function toggleCompactMode() {
 export function handleApplyPreset({ cat = '', pri = '' } = {}) {
   if (cat) dom.taskCatSelect.value = cat;
   if (pri) dom.taskPriSelect.value = pri;
-  if (state.currentDayId) dom.taskDaySelect.value = state.currentDayId;
+  syncPresetUi();
   focusTaskInput();
 }
 
@@ -418,8 +502,8 @@ export function submitEdit() {
   closeEditModal(value);
 }
 
-export function closePreview(value = null) {
-  closePreviewModal(value);
+export function closeTask(value = null) {
+  closeTaskModal(value);
 }
 
 export function closeDay(value = null) {
@@ -454,6 +538,7 @@ export function runInitialRender() {
   renderApp();
   syncAddButtonState();
   syncSearchUi();
+  syncPresetUi();
   syncCompactUi();
 }
 

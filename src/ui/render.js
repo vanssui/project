@@ -7,7 +7,9 @@ import { createTaskElement } from './task-view.js';
 import { state } from '../store/state.js';
 
 let callbacks = {
-  onOpenDay: () => {}
+  onOpenDay: () => {},
+  onFocusToday: () => {},
+  onFocusUrgentToday: () => {}
 };
 const dayCardCache = new Map();
 
@@ -46,6 +48,82 @@ function getDayHint(dayId, hasAllTasks, hasVisibleTasks) {
   if (!hasAllTasks && (dayId === 'sat' || dayId === 'sun')) return 'Спокойное окно без лишнего шума';
   if (!hasAllTasks) return 'Пока тихо. Здесь можно не усложнять';
   return 'Скрыто текущими условиями просмотра';
+}
+
+function getBusiestDayMeta(stats) {
+  return daysShort.reduce((best, dayId, index) => {
+    const count = stats.activeByDay[dayId]?.length || 0;
+    if (!best || count > best.count) {
+      return { dayId, count, label: dayNames[index] || dayId };
+    }
+    return best;
+  }, null);
+}
+
+function createFocusChip({ label, tone = '', title = '', onClick = null }) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `focus-chip ${tone}`.trim();
+  button.textContent = label;
+  if (title) button.title = title;
+  if (typeof onClick === 'function') {
+    button.addEventListener('click', onClick);
+  } else {
+    button.disabled = true;
+  }
+  return button;
+}
+
+function renderFocusStrip(stats) {
+  if (!dom.focusStrip) return;
+
+  const todayTasks = stats.activeByDay[state.currentDayId] || [];
+  const todayVisible = stats.visibleActiveByDay[state.currentDayId] || [];
+  const todayUrgent = todayTasks.filter((task) => task.pri === 'urgent').length;
+  const busiest = getBusiestDayMeta(stats);
+  const archiveGroups = groupArchiveTasks(stats.archiveVisible);
+  const fragment = document.createDocumentFragment();
+
+  fragment.appendChild(createFocusChip({
+    label: todayVisible.length
+      ? `Сегодня: ${todayVisible.length} ${pluralizeTasks(todayVisible.length)}`
+      : 'Сегодня: спокойное окно',
+    tone: 'current',
+    title: 'Быстрый фокус на текущем дне',
+    onClick: callbacks.onFocusToday
+  }));
+
+  fragment.appendChild(createFocusChip({
+    label: todayUrgent
+      ? `Срочно сегодня: ${todayUrgent}`
+      : 'Срочных сегодня нет',
+    tone: todayUrgent ? 'urgent' : 'calm',
+    title: todayUrgent ? 'Показать срочные задачи с фокусом на сегодня' : 'Сегодня можно работать ровно',
+    onClick: todayUrgent ? callbacks.onFocusUrgentToday : null
+  }));
+
+  if (busiest?.count) {
+    fragment.appendChild(createFocusChip({
+      label: `Пик недели: ${busiest.label} · ${busiest.count}`,
+      tone: busiest.dayId === state.currentDayId ? 'current' : 'busy',
+      title: `Открыть задачи за ${busiest.label}`,
+      onClick: () => callbacks.onOpenDay(busiest.dayId)
+    }));
+  }
+
+  const archiveSummary = [];
+  if (archiveGroups.today.length) archiveSummary.push(`архив сегодня ${archiveGroups.today.length}`);
+  if (archiveGroups.yesterday.length) archiveSummary.push(`вчера ${archiveGroups.yesterday.length}`);
+  if (archiveGroups.earlier.length) archiveSummary.push(`ранее ${archiveGroups.earlier.length}`);
+  if (archiveSummary.length) {
+    fragment.appendChild(createFocusChip({
+      label: archiveSummary.join(' · '),
+      tone: 'archive',
+      title: 'Срез по архиву за последние дни'
+    }));
+  }
+
+  dom.focusStrip.replaceChildren(fragment);
 }
 
 function createDayCard(dayId, index) {
@@ -187,8 +265,14 @@ function updateDayCard(dayId, index, stats) {
   const dominantCategory = getDominantCategory(visible.length ? visible : all);
   const accent = dayAccentMap[dominantCategory] || 'rgba(255,106,45,.16)';
   const hintText = getDayHint(dayId, Boolean(all.length), Boolean(visible.length));
+  const urgentVisibleCount = visible.filter((task) => task.pri === 'urgent').length;
+  const isBusyDay = all.length >= 5;
+  const isOverloadedDay = all.length >= 7;
 
   card.classList.toggle('today', isToday);
+  card.classList.toggle('is-busy', isBusyDay);
+  card.classList.toggle('is-overloaded', isOverloadedDay);
+  card.classList.toggle('has-urgent-focus', urgentVisibleCount > 0);
   card.classList.toggle('is-empty', !all.length);
   card.classList.toggle('is-filter-empty', Boolean(all.length && !visible.length));
   card.classList.toggle('is-search-empty', Boolean(state.searchQuery && all.length && !visible.length));
@@ -205,7 +289,12 @@ function updateDayCard(dayId, index, stats) {
   refs.summary.textContent = getDaySummaryText(visible);
   refs.taskList.replaceChildren();
 
-  preview.forEach((task) => refs.taskList.appendChild(createTaskElement(task, { isArchive: false })));
+  preview.forEach((task, taskIndex) => {
+    refs.taskList.appendChild(createTaskElement(task, {
+      isArchive: false,
+      isLead: taskIndex === 0 && (isBusyDay || task.pri === 'urgent')
+    }));
+  });
 
   if (hidden > 0) {
     refs.moreWrap.style.display = '';
@@ -253,6 +342,20 @@ function createArchiveGroup(titleText, tasks) {
 function renderArchive(stats) {
   const sorted = sortArchiveTasks(stats.archiveVisible);
   setText(dom.archiveCount, `${sorted.length} ${pluralizeTasks(sorted.length)}`);
+  const groups = groupArchiveTasks(sorted);
+  if (dom.archiveSummary) {
+    const summaryParts = [];
+    if (groups.today.length) summaryParts.push(`Сегодня ${groups.today.length}`);
+    if (groups.yesterday.length) summaryParts.push(`Вчера ${groups.yesterday.length}`);
+    if (groups.earlier.length) summaryParts.push(`Ранее ${groups.earlier.length}`);
+    setText(dom.archiveSummary, summaryParts.join(' · ') || 'Пока пусто');
+  }
+  if (dom.clearOlderArchiveBtn) {
+    const hasEarlier = groups.earlier.length > 0;
+    dom.clearOlderArchiveBtn.hidden = !hasEarlier;
+    dom.clearOlderArchiveBtn.disabled = !hasEarlier;
+    dom.clearOlderArchiveBtn.setAttribute('aria-disabled', String(!hasEarlier));
+  }
 
   if (!sorted.length) {
     const empty = document.createElement('div');
@@ -262,7 +365,6 @@ function renderArchive(stats) {
     return;
   }
 
-  const groups = groupArchiveTasks(sorted);
   const fragment = document.createDocumentFragment();
   if (groups.today.length) fragment.appendChild(createArchiveGroup('Сегодня', groups.today));
   if (groups.yesterday.length) fragment.appendChild(createArchiveGroup('Вчера', groups.yesterday));
@@ -273,6 +375,7 @@ function renderArchive(stats) {
 export function renderApp() {
   const stats = buildStats(state.tasks, state.activeFilter, state.searchQuery);
   renderWeekStats(stats);
+  renderFocusStrip(stats);
   ensureWeekGrid();
   daysShort.forEach((dayId, index) => updateDayCard(dayId, index, stats));
   renderArchive(stats);

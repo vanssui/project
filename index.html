@@ -26,14 +26,17 @@
   </svg>
 
   <a class="visually-hidden focus-skip-link" href="#taskName">Перейти к добавлению задачи</a>
+  <div class="quote-ambient" id="ambientQuote" aria-hidden="true"></div>
 
   <header class="header-container hero-title">
     <h1 class="main-title" data-text="VAN TRU FREE">VAN TRU FREE</h1>
     <span class="sub-title">FAMILY TRACKER</span>
-    <div class="hero-clock" id="heroClock" aria-label="Текущее время">
-      <span class="clock-main">00:00</span><span class="clock-seconds">:00</span>
+    <div class="hero-info-strip">
+      <div class="hero-clock" id="heroClock" aria-label="Текущее время">
+        <span class="clock-main">00:00</span><span class="clock-seconds">:00</span>
+      </div>
+      <div id="currentDate" class="date-widget" aria-live="polite"></div>
     </div>
-    <div id="currentDate" class="date-widget" aria-live="polite"></div>
   </header>
 
   <main class="app-shell">
@@ -107,25 +110,23 @@
   </div>
 
   <section class="control-deck" aria-label="Быстрые действия и поиск">
-    <div class="control-row control-row-main">
-      <div class="quick-actions" role="toolbar" aria-label="Быстрые действия">
-        <button class="control-btn" type="button" id="todayBtn">Сегодня</button>
-        <button class="control-btn" type="button" id="compactToggleBtn" aria-pressed="false">Compact</button>
-      </div>
-
-      <div class="search-shell" role="search">
-        <label class="visually-hidden" for="taskSearch">Поиск задач</label>
-        <input type="search" id="taskSearch" placeholder="Поиск по задачам" maxlength="80" autocomplete="off" />
-        <button class="clear-search-btn" type="button" id="clearSearchBtn" aria-label="Очистить поиск">Сброс</button>
-      </div>
+    <div class="control-group preset-row" role="toolbar" aria-label="Быстрые пресеты">
+      <span class="preset-label">Quick Set</span>
+      <button class="preset-btn" type="button" data-cat="Дом" aria-pressed="false">Дом</button>
+      <button class="preset-btn" type="button" data-cat="Работа" aria-pressed="false">Работа</button>
+      <button class="preset-btn" type="button" data-cat="Личное" aria-pressed="false">Личное</button>
+      <button class="preset-btn preset-btn-urgent" type="button" data-pri="urgent" aria-pressed="false">Срочно</button>
     </div>
 
-    <div class="control-row preset-row" role="toolbar" aria-label="Быстрые пресеты">
-      <span class="preset-label">Quick Set</span>
-      <button class="preset-btn" type="button" data-cat="Дом">Дом</button>
-      <button class="preset-btn" type="button" data-cat="Работа">Работа</button>
-      <button class="preset-btn" type="button" data-cat="Личное">Личное</button>
-      <button class="preset-btn" type="button" data-pri="urgent">Срочно</button>
+    <div class="control-group quick-actions utility-actions" role="toolbar" aria-label="Быстрые действия">
+      <button class="control-btn utility-btn today-btn" type="button" id="todayBtn">Сегодня</button>
+      <button class="control-btn utility-btn compact-btn" type="button" id="compactToggleBtn" aria-pressed="false">Compact</button>
+    </div>
+
+    <div class="control-group search-shell" role="search">
+      <label class="visually-hidden" for="taskSearch">Поиск задач</label>
+      <input type="search" id="taskSearch" placeholder="Поиск" maxlength="80" autocomplete="off" />
+      <button class="clear-search-btn" type="button" id="clearSearchBtn" aria-label="Очистить поиск">X</button>
     </div>
   </section>
 
@@ -142,12 +143,7 @@
       <option value="sat">Суббота</option>
       <option value="sun">Воскресенье</option>
     </select>
-    <label class="visually-hidden" for="taskCat">Категория задачи</label>
-    <select id="taskCat" aria-label="Категория задачи">
-      <option value="Дом">🏠 Дом</option>
-      <option value="Работа">💼 Работа</option>
-      <option value="Личное">✨ Личное</option>
-    </select>
+    <input type="hidden" id="taskCat" value="Дом" />
     <label class="visually-hidden" for="taskPri">Приоритет задачи</label>
     <select id="taskPri" aria-label="Приоритет задачи">
       <option value="normal">Обычный</option>
@@ -155,7 +151,8 @@
     </select>
     <button class="add-btn" type="submit" id="addTaskBtn">ADD MISSION</button>
   </form>
-  <p class="input-hint" id="taskInputHint">Enter добавляет задачу. Двойной клик или долгое нажатие по задаче открывает редактирование.</p>
+  <p class="input-hint" id="taskInputHint">Enter добавляет задачу. Клик по задаче открывает карточку действий, где можно завершить, изменить или удалить её.</p>
+  <section class="focus-strip" id="focusStrip" aria-label="Фокус недели"></section>
 
   <section class="week-grid" id="grid" aria-label="Недельная сетка задач"></section>
 
@@ -165,8 +162,10 @@
       <div class="archive-header">
         <div class="archive-meta">
           <span id="archiveCount" class="archive-count">0 задач</span>
+          <div id="archiveSummary" class="archive-summary"></div>
         </div>
         <div class="archive-actions">
+          <button class="archive-clear-btn secondary" type="button" id="clearOlderArchiveBtn">Очистить старое</button>
           <button class="archive-clear-btn" type="button" id="clearArchiveBtn">Очистить архив</button>
         </div>
       </div>
@@ -200,15 +199,14 @@
     </div>
   </div>
 
-  <div class="modal-root" id="previewModalRoot" aria-hidden="true">
-    <div class="modal-backdrop" id="previewModalBackdrop"></div>
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
-      <div class="modal-kicker">Просмотр</div>
-      <h3 class="modal-title" id="previewModalTitle">Полный текст задачи</h3>
-      <div class="modal-text preview-modal-text" id="previewModalText"></div>
-      <div class="modal-actions">
-        <button class="modal-btn primary" type="button" id="previewCloseBtn">Закрыть</button>
-      </div>
+  <div class="modal-root" id="taskModalRoot" aria-hidden="true">
+    <div class="modal-backdrop" id="taskModalBackdrop"></div>
+    <div class="modal-card task-modal-card" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+      <div class="modal-kicker" id="taskModalKicker">Задача</div>
+      <h3 class="modal-title" id="taskModalTitle">Карточка задачи</h3>
+      <div class="task-modal-meta" id="taskModalMeta"></div>
+      <div class="modal-text task-modal-text" id="taskModalText"></div>
+      <div class="modal-actions" id="taskModalActions"></div>
     </div>
   </div>
 

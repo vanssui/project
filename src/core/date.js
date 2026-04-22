@@ -59,3 +59,22 @@ export function formatArchiveTime(timestamp) {
     minute: '2-digit'
   });
 }
+
+export function getStartOfDay(date = new Date()) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+export function getTaskAgeDays(timestamp, baseDate = new Date()) {
+  if (!timestamp) return 0;
+  const createdDay = getStartOfDay(new Date(timestamp));
+  const currentDay = getStartOfDay(baseDate);
+  return Math.max(0, Math.floor((currentDay.getTime() - createdDay.getTime()) / 86400000));
+}
+
+export function formatTaskAgeLabel(timestamp, baseDate = new Date()) {
+  const ageDays = getTaskAgeDays(timestamp, baseDate);
+  if (ageDays <= 0) return 'сегодня';
+  return `${ageDays}д`;
+}
