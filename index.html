@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>VAN TRU FREE | FAMILY TRACKER</title>
+  <meta name="description" content="Легкий семейный недельный трекер задач с архивом, фильтрами, импортом и экспортом JSON." />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body class="preload">
@@ -19,30 +20,36 @@
     <symbol id="close" viewBox="0 0 24 24">
       <path d="M18.3 5.7a1 1 0 0 0-1.4-1.4L12 9.17 7.1 4.3A1 1 0 1 0 5.7 5.7L10.6 10.6 5.7 15.5a1 1 0 1 0 1.4 1.4L12 12.03l4.9 4.87a1 1 0 0 0 1.4-1.4l-4.87-4.9 4.87-4.9z"/>
     </symbol>
+    <symbol id="copy" viewBox="0 0 24 24">
+      <path d="M8 3a3 3 0 0 0-3 3v9h2V6a1 1 0 0 1 1-1h9V3H8zm4 4a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h7a3 3 0 0 0 3-3v-8a3 3 0 0 0-3-3h-7zm0 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z"/>
+    </symbol>
   </svg>
 
-  <div class="header-container hero-title">
+  <a class="visually-hidden focus-skip-link" href="#taskName">Перейти к добавлению задачи</a>
+
+  <header class="header-container hero-title">
     <h1 class="main-title" data-text="VAN TRU FREE">VAN TRU FREE</h1>
     <span class="sub-title">FAMILY TRACKER</span>
-    <div class="hero-clock" id="heroClock">
+    <div class="hero-clock" id="heroClock" aria-label="Текущее время">
       <span class="clock-main">00:00</span><span class="clock-seconds">:00</span>
     </div>
-    <div id="currentDate" class="date-widget"></div>
-  </div>
+    <div id="currentDate" class="date-widget" aria-live="polite"></div>
+  </header>
 
-  <div class="top-line">
+  <main class="app-shell">
+  <div class="top-line" aria-label="Панель состояния и инструментов">
     <div class="top-left">
-      <div class="week-progress">
+      <div class="week-progress" aria-live="polite">
         <span class="week-progress-label">Week Progress</span>
         <span class="week-progress-value" id="weekProgressValue">0%</span>
       </div>
-      <div class="filter-group" id="filterGroup">
+      <div class="filter-group" id="filterGroup" role="toolbar" aria-label="Фильтр задач">
         <span class="filter-label">Filter</span>
-        <button class="filter-btn active" data-filter="all" type="button">Все</button>
-        <button class="filter-btn" data-filter="Дом" type="button">Дом</button>
-        <button class="filter-btn" data-filter="Работа" type="button">Работа</button>
-        <button class="filter-btn" data-filter="Личное" type="button">Личное</button>
-        <button class="filter-btn filter-btn-urgent" data-filter="urgent" type="button">🔥 Срочно</button>
+        <button class="filter-btn active" data-filter="all" type="button" aria-pressed="true">Все</button>
+        <button class="filter-btn" data-filter="Дом" type="button" aria-pressed="false">Дом</button>
+        <button class="filter-btn" data-filter="Работа" type="button" aria-pressed="false">Работа</button>
+        <button class="filter-btn" data-filter="Личное" type="button" aria-pressed="false">Личное</button>
+        <button class="filter-btn filter-btn-urgent" data-filter="urgent" type="button" aria-pressed="false">🔥 Срочно</button>
       </div>
     </div>
 
@@ -82,7 +89,7 @@
     </div>
 
     <div class="top-right">
-      <div class="tools-group">
+      <div class="tools-group" role="group" aria-label="Импорт и экспорт задач">
         <span class="tools-label">JSON</span>
         <button class="tool-btn" type="button" id="exportBtn">Export</button>
         <label class="import-label" for="jsonFileInput">Import</label>
@@ -99,9 +106,34 @@
     </div>
   </div>
 
-  <div class="input-panel">
-    <input type="text" id="taskName" placeholder="Какая миссия на сегодня?" maxlength="140" />
-    <select id="taskDay">
+  <section class="control-deck" aria-label="Быстрые действия и поиск">
+    <div class="control-row control-row-main">
+      <div class="quick-actions" role="toolbar" aria-label="Быстрые действия">
+        <button class="control-btn" type="button" id="todayBtn">Сегодня</button>
+        <button class="control-btn" type="button" id="compactToggleBtn" aria-pressed="false">Compact</button>
+      </div>
+
+      <div class="search-shell" role="search">
+        <label class="visually-hidden" for="taskSearch">Поиск задач</label>
+        <input type="search" id="taskSearch" placeholder="Поиск по задачам" maxlength="80" autocomplete="off" />
+        <button class="clear-search-btn" type="button" id="clearSearchBtn" aria-label="Очистить поиск">Сброс</button>
+      </div>
+    </div>
+
+    <div class="control-row preset-row" role="toolbar" aria-label="Быстрые пресеты">
+      <span class="preset-label">Quick Set</span>
+      <button class="preset-btn" type="button" data-cat="Дом">Дом</button>
+      <button class="preset-btn" type="button" data-cat="Работа">Работа</button>
+      <button class="preset-btn" type="button" data-cat="Личное">Личное</button>
+      <button class="preset-btn" type="button" data-pri="urgent">Срочно</button>
+    </div>
+  </section>
+
+  <form class="input-panel" id="taskForm" autocomplete="off" aria-label="Добавление новой задачи">
+    <label class="visually-hidden" for="taskName">Название задачи</label>
+    <input type="text" id="taskName" placeholder="Какая миссия на сегодня?" maxlength="140" aria-describedby="taskInputHint" />
+    <label class="visually-hidden" for="taskDay">День недели</label>
+    <select id="taskDay" aria-label="День недели">
       <option value="mon">Понедельник</option>
       <option value="tue">Вторник</option>
       <option value="wed">Среда</option>
@@ -110,19 +142,22 @@
       <option value="sat">Суббота</option>
       <option value="sun">Воскресенье</option>
     </select>
-    <select id="taskCat">
+    <label class="visually-hidden" for="taskCat">Категория задачи</label>
+    <select id="taskCat" aria-label="Категория задачи">
       <option value="Дом">🏠 Дом</option>
       <option value="Работа">💼 Работа</option>
       <option value="Личное">✨ Личное</option>
     </select>
-    <select id="taskPri">
+    <label class="visually-hidden" for="taskPri">Приоритет задачи</label>
+    <select id="taskPri" aria-label="Приоритет задачи">
       <option value="normal">Обычный</option>
       <option value="urgent">🔥 СРОЧНО</option>
     </select>
-    <button class="add-btn" type="button" id="addTaskBtn">ADD MISSION</button>
-  </div>
+    <button class="add-btn" type="submit" id="addTaskBtn">ADD MISSION</button>
+  </form>
+  <p class="input-hint" id="taskInputHint">Enter добавляет задачу. Двойной клик или долгое нажатие по задаче открывает редактирование.</p>
 
-  <div class="week-grid" id="grid"></div>
+  <section class="week-grid" id="grid" aria-label="Недельная сетка задач"></section>
 
   <details class="archive-section">
     <summary>АРХИВ ВЫПОЛНЕННЫХ</summary>
@@ -198,5 +233,6 @@
   <span>Если задачи нет — не усложняй.</span><br>
   <span class="quote-author">Ван Олег</span>
 </div>
+  </main>
 </body>
 </html>

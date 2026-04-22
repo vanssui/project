@@ -1,7 +1,7 @@
 import { categories, daysShort } from '../shared/config.js';
-import { passesFilter } from './task-selectors.js';
+import { passesTaskView } from './task-selectors.js';
 
-export function buildStats(tasks, activeFilter) {
+export function buildStats(tasks, activeFilter, searchQuery = '') {
   const byCat = Object.fromEntries(categories.map((cat) => [cat, { total: 0, done: 0 }]));
   const activeByDay = Object.fromEntries(daysShort.map((day) => [day, []]));
   const visibleActiveByDay = Object.fromEntries(daysShort.map((day) => [day, []]));
@@ -16,13 +16,13 @@ export function buildStats(tasks, activeFilter) {
 
     if (task.done) {
       done += 1;
-      if (passesFilter(task, activeFilter)) archiveVisible.push(task);
+      if (passesTaskView(task, activeFilter, searchQuery)) archiveVisible.push(task);
       continue;
     }
 
     if (activeByDay[task.day]) {
       activeByDay[task.day].push(task);
-      if (passesFilter(task, activeFilter)) {
+      if (passesTaskView(task, activeFilter, searchQuery)) {
         visibleActiveByDay[task.day].push(task);
       }
     }

@@ -1,11 +1,16 @@
 export const dom = {
   body: document.body,
   canvas: document.getElementById('bg-canvas'),
+  taskForm: document.getElementById('taskForm'),
   taskInput: document.getElementById('taskName'),
   taskDaySelect: document.getElementById('taskDay'),
   taskCatSelect: document.getElementById('taskCat'),
   taskPriSelect: document.getElementById('taskPri'),
   addTaskBtn: document.getElementById('addTaskBtn'),
+  todayBtn: document.getElementById('todayBtn'),
+  compactToggleBtn: document.getElementById('compactToggleBtn'),
+  taskSearchInput: document.getElementById('taskSearch'),
+  clearSearchBtn: document.getElementById('clearSearchBtn'),
   exportBtn: document.getElementById('exportBtn'),
   clearArchiveBtn: document.getElementById('clearArchiveBtn'),
   archiveCount: document.getElementById('archiveCount'),
@@ -42,6 +47,7 @@ export const dom = {
   themeToggle: document.getElementById('themeToggle'),
   themeLabel: document.getElementById('themeLabel'),
   filterButtons: Array.from(document.querySelectorAll('.filter-btn')),
+  presetButtons: Array.from(document.querySelectorAll('.preset-btn')),
   systemThemeQuery: window.matchMedia('(prefers-color-scheme: light)')
 };
 

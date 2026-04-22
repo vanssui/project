@@ -8,6 +8,7 @@ import {
 } from './focus-trap.js';
 import { setText } from '../shared/utils.js';
 import { getDayName } from '../core/date.js';
+import { state } from '../store/state.js';
 
 let confirmResolver = null;
 let editResolver = null;
@@ -130,6 +131,12 @@ function renderDayModal(dayId) {
   dom.dayModalList.replaceChildren();
 
   if (!tasks.length) {
+    const emptyText = state.searchQuery
+      ? 'По текущему запросу в этом дне пусто'
+      : state.activeFilter !== 'all'
+        ? 'По выбранному фильтру здесь ничего нет'
+        : 'Пока пусто';
+    setText(dom.dayModalEmpty, emptyText);
     dom.dayModalList.classList.add('is-hidden');
     dom.dayModalEmpty.classList.remove('is-hidden');
     return;

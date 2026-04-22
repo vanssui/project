@@ -2,10 +2,18 @@ import { dom } from './dom.js';
 import { handleFocusTrap } from './modals.js';
 
 export function bindEvents(handlers) {
-  dom.addTaskBtn.addEventListener('click', handlers.onAddTask);
+  const submitTask = (event) => {
+    event?.preventDefault();
+    handlers.onAddTask();
+  };
+
+  dom.taskForm?.addEventListener('submit', submitTask);
   dom.exportBtn.addEventListener('click', handlers.onExport);
   dom.clearArchiveBtn.addEventListener('click', handlers.onClearArchive);
   dom.telegramBtn?.addEventListener('click', handlers.onOpenTelegram);
+  dom.todayBtn?.addEventListener('click', handlers.onScrollToToday);
+  dom.compactToggleBtn?.addEventListener('click', handlers.onToggleCompact);
+  dom.clearSearchBtn?.addEventListener('click', handlers.onClearSearch);
   dom.modalBackdrop.addEventListener('click', () => handlers.onCloseConfirm(null));
   dom.editModalBackdrop.addEventListener('click', () => handlers.onCloseEdit(null));
   dom.previewModalBackdrop.addEventListener('click', () => handlers.onClosePreview(null));
@@ -20,6 +28,15 @@ export function bindEvents(handlers) {
       event.preventDefault();
       handlers.onAddTask();
     }
+  });
+  dom.taskInput.addEventListener('input', handlers.onTaskInputChange);
+  dom.taskSearchInput?.addEventListener('input', (event) => {
+    handlers.onSearchChange(event.target.value);
+  });
+  dom.taskSearchInput?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    handlers.onClearSearch();
   });
 
   dom.editTaskInput.addEventListener('keydown', (event) => {
@@ -44,6 +61,14 @@ export function bindEvents(handlers) {
 
   dom.filterButtons.forEach((button) => {
     button.addEventListener('click', () => handlers.onSetFilter(button.dataset.filter));
+  });
+  dom.presetButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      handlers.onApplyPreset({
+        cat: button.dataset.cat || '',
+        pri: button.dataset.pri || ''
+      });
+    });
   });
 
   dom.jsonFileInput.addEventListener('change', (event) => {

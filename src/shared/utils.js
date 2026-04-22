@@ -18,6 +18,10 @@ export function clampTitle(value) {
   return normalizeSpaces(value).slice(0, MAX_TITLE_LENGTH);
 }
 
+export function normalizeSearchQuery(value) {
+  return normalizeSpaces(value).toLocaleLowerCase('ru-RU');
+}
+
 export function validateTitle(raw) {
   const title = clampTitle(raw);
   return title ? { ok: true, value: title } : { ok: false, reason: 'empty' };

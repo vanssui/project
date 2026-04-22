@@ -52,7 +52,8 @@ export function showToast(message, type = 'info', title = '') {
 
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  el.setAttribute('role', 'status');
+  el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  el.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
 
   const head = document.createElement('div');
   head.className = 'toast-title';

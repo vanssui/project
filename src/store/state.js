@@ -1,6 +1,7 @@
 export const state = {
   currentDayId: '',
   activeFilter: 'all',
+  searchQuery: '',
   tasks: [],
   draggedTaskId: null,
   openedDayModalId: null,
@@ -14,7 +15,9 @@ export const state = {
   dpr: 1,
   resizeRaf: 0,
   particles: [],
-  isBusy: false
+  isBusy: false,
+  compactMode: false,
+  recentTaskId: null
 };
 
 export function setTasks(tasks) {
@@ -23,4 +26,12 @@ export function setTasks(tasks) {
 
 export function setFilter(filter) {
   state.activeFilter = filter;
+}
+
+export function setSearchQuery(query) {
+  state.searchQuery = query;
+}
+
+export function setCompactMode(compactMode) {
+  state.compactMode = compactMode;
 }

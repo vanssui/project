@@ -1,4 +1,5 @@
 import { daysShort } from '../shared/config.js';
+import { normalizeSearchQuery } from '../shared/utils.js';
 
 export function passesFilter(task, activeFilter) {
   if (activeFilter === 'all') return true;
@@ -6,8 +7,17 @@ export function passesFilter(task, activeFilter) {
   return task.cat === activeFilter;
 }
 
-export function getVisibleDayTasks(tasks, dayId, activeFilter) {
-  return tasks.filter((task) => task.day === dayId && !task.done && passesFilter(task, activeFilter));
+export function matchesSearch(task, searchQuery) {
+  if (!searchQuery) return true;
+  return normalizeSearchQuery(task.title).includes(searchQuery);
+}
+
+export function passesTaskView(task, activeFilter, searchQuery) {
+  return passesFilter(task, activeFilter) && matchesSearch(task, searchQuery);
+}
+
+export function getVisibleDayTasks(tasks, dayId, activeFilter, searchQuery = '') {
+  return tasks.filter((task) => task.day === dayId && !task.done && passesTaskView(task, activeFilter, searchQuery));
 }
 
 export function getActiveTasksByDay(tasks) {
@@ -20,6 +30,6 @@ export function getActiveTasksByDay(tasks) {
   return result;
 }
 
-export function getVisibleArchiveTasks(tasks, activeFilter) {
-  return tasks.filter((task) => task.done && passesFilter(task, activeFilter));
+export function getVisibleArchiveTasks(tasks, activeFilter, searchQuery = '') {
+  return tasks.filter((task) => task.done && passesTaskView(task, activeFilter, searchQuery));
 }
