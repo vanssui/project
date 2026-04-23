@@ -1,0 +1,11 @@
+{
+  "name": "VAN TRU FREE Family Tracker",
+  "short_name": "VAN TRU FREE",
+  "description": "Легкий недельный трекер задач для дома, работы и личного ритма.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b0a0a",
+  "theme_color": "#0b0a0a",
+  "lang": "ru",
+  "orientation": "portrait"
+}
