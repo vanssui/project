@@ -49,7 +49,3 @@ export function getActiveTasksByDay(tasks) {
   daysShort.forEach((day) => result[day].sort(compareTasksForDay));
   return result;
 }
-
-export function getVisibleArchiveTasks(tasks, activeFilter, searchQuery = '') {
-  return tasks.filter((task) => task.done && passesTaskView(task, activeFilter, searchQuery));
-}

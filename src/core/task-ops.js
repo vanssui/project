@@ -50,6 +50,11 @@ export function clearArchive(tasks) {
   return { changed: next.length !== tasks.length, tasks: next };
 }
 
+export function clearActiveTasks(tasks) {
+  const next = tasks.filter((task) => task.done);
+  return { changed: next.length !== tasks.length, tasks: next };
+}
+
 export function clearArchiveEarlier(tasks, now = new Date()) {
   const next = tasks.filter((task) => {
     if (!task.done) return true;

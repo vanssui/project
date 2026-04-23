@@ -14,6 +14,7 @@ let confirmResolver = null;
 let editResolver = null;
 let taskResolver = null;
 let dayResolver = null;
+let manualOpen = false;
 let adapters = {
   getDayTasks: () => [],
   createTaskElement: () => document.createElement('div')
@@ -218,4 +219,19 @@ export function closeDayModal(value = null) {
   openedDayId = null;
   restoreFocus();
   resolver?.(value);
+}
+
+export function openManualModal() {
+  if (manualOpen) return;
+  rememberFocus();
+  manualOpen = true;
+  showModal(dom.manualModalRoot);
+  setTimeout(() => dom.manualCloseBtn?.focus(), 20);
+}
+
+export function closeManualModal() {
+  if (!manualOpen) return;
+  hideModal(dom.manualModalRoot);
+  manualOpen = false;
+  restoreFocus();
 }

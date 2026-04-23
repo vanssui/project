@@ -105,6 +105,7 @@
         <input id="jsonFileInput" type="file" accept=".json,application/json" />
       </div>
 
+      <button class="tool-btn manual-btn" type="button" id="manualBtn">Manual</button>
       <button class="tool-btn telegram-btn" type="button" id="telegramBtn">Telegram</button>
 
       <label class="theme-switch">
@@ -124,10 +125,11 @@
       <button class="preset-btn preset-btn-urgent" type="button" data-pri="urgent" aria-pressed="false">Срочно</button>
     </div>
 
-    <div class="control-group quick-actions utility-actions" role="toolbar" aria-label="Быстрые действия">
-      <button class="control-btn utility-btn today-btn" type="button" id="todayBtn">Сегодня</button>
-      <button class="control-btn utility-btn compact-btn" type="button" id="compactToggleBtn" aria-pressed="false">Compact</button>
-    </div>
+	    <div class="control-group quick-actions utility-actions" role="toolbar" aria-label="Быстрые действия">
+ 	      <button class="control-btn utility-btn today-btn" type="button" id="todayBtn">Сегодня</button>
+ 	      <button class="control-btn utility-btn compact-btn" type="button" id="compactToggleBtn" aria-pressed="false">Compact</button>
+	      <button class="control-btn utility-btn focus-btn" type="button" id="focusToggleBtn" aria-pressed="false">Focus</button>
+	    </div>
 
     <div class="control-group search-shell" role="search">
       <label class="visually-hidden" for="taskSearch">Поиск задач</label>
@@ -156,9 +158,18 @@
       <option value="urgent">🔥 СРОЧНО</option>
     </select>
     <button class="add-btn" type="submit" id="addTaskBtn">ADD MISSION</button>
-  </form>
-  <p class="input-hint" id="taskInputHint">Enter добавляет задачу. Клик по задаче открывает карточку действий, где можно завершить, изменить или удалить её.</p>
-  <section class="focus-strip" id="focusStrip" aria-label="Фокус недели"></section>
+	  </form>
+ 	  <p class="input-hint" id="taskInputHint">Quick Set выбирает категорию. Enter добавляет задачу. Клик по карточке открывает действия: завершить, изменить, удалить или повторить.</p>
+		  <section class="onboarding-panel" id="onboardingPanel" aria-label="Короткое знакомство" hidden>
+		    <div class="onboarding-copy">
+		      <div class="onboarding-title">Быстрый вход в ритм</div>
+		      <div class="onboarding-text">1. Выбери `Quick Set`. 2. Укажи день. 3. Enter добавит задачу. 4. Клик по карточке откроет действия. `Focus` в верхней панели убирает лишний визуальный шум.</div>
+		    </div>
+		    <div class="onboarding-actions">
+		      <button class="tool-btn onboarding-dismiss-btn" type="button" id="dismissOnboardingBtn">Понятно</button>
+		    </div>
+		  </section>
+	  <section class="focus-strip" id="focusStrip" aria-label="Фокус недели"></section>
 
   <section class="week-grid" id="grid" aria-label="Недельная сетка задач"></section>
 
@@ -171,6 +182,7 @@
           <div id="archiveSummary" class="archive-summary"></div>
         </div>
         <div class="archive-actions">
+          <button class="archive-clear-btn danger" type="button" id="clearActiveBtn">Очистить активные</button>
           <button class="archive-clear-btn secondary" type="button" id="clearOlderArchiveBtn">Очистить старое</button>
           <button class="archive-clear-btn" type="button" id="clearArchiveBtn">Очистить архив</button>
         </div>
@@ -227,6 +239,54 @@
       <div class="day-modal-empty is-hidden" id="dayModalEmpty">Пусто</div>
       <div class="modal-actions">
         <button class="modal-btn primary" type="button" id="dayModalCloseBtn">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-root" id="manualModalRoot" aria-hidden="true">
+    <div class="modal-backdrop" id="manualModalBackdrop"></div>
+    <div class="modal-card manual-modal-card" role="dialog" aria-modal="true" aria-labelledby="manualModalTitle">
+      <div class="modal-kicker">Manual</div>
+      <h3 class="modal-title" id="manualModalTitle">Коротко и по-человечески</h3>
+      <div class="manual-thread" aria-label="Справка по трекеру">
+        <div class="manual-bubble">
+          <p>Это недельный трекер без лишней сложности.</p>
+          <p>Ты добавляешь задачу, видишь её в нужном дне, открываешь карточку и уже там решаешь: завершить, изменить, повторить или удалить.</p>
+        </div>
+        <div class="manual-bubble manual-bubble-accent">
+          <p><strong>Быстрый старт:</strong></p>
+          <p>1. Выбери категорию в <strong>Quick Set</strong>.</p>
+          <p>2. Укажи день.</p>
+          <p>3. Нажми <strong>Enter</strong> или кнопку <strong>ADD MISSION</strong>.</p>
+        </div>
+        <div class="manual-bubble">
+          <p><strong>Что важно знать:</strong></p>
+          <p><strong>Клик по задаче</strong> открывает окно действий.</p>
+          <p><strong>Поиск</strong> ищет по названию.</p>
+          <p><strong>Фильтры</strong> сверху показывают только нужный срез недели.</p>
+        </div>
+        <div class="manual-bubble">
+          <p><strong>Кнопки вверху:</strong></p>
+          <p><strong>Сегодня</strong> переносит к текущему дню.</p>
+          <p><strong>Compact</strong> делает интерфейс плотнее.</p>
+          <p><strong>Focus</strong> убирает часть визуального шума.</p>
+        </div>
+        <div class="manual-bubble">
+          <p><strong>Архив и очистка:</strong></p>
+          <p>Внизу есть архив выполненных задач.</p>
+          <p>Там же можно отдельно очистить архив, старые записи или все активные задачи, если хочешь начать неделю заново.</p>
+        </div>
+        <div class="manual-bubble">
+          <p><strong>Импорт и экспорт:</strong></p>
+          <p>Трекер умеет сохранять и загружать задачи через <strong>JSON</strong>.</p>
+          <p>Это удобно как локальный бэкап или перенос между браузерами.</p>
+        </div>
+        <div class="manual-bubble manual-bubble-soft">
+          <p>Если коротко: здесь всё сделано ради одного — быстро понять, что у тебя происходит по неделе, и не утонуть в лишнем.</p>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn primary" type="button" id="manualCloseBtn">Понял</button>
       </div>
     </div>
   </div>

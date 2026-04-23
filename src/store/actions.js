@@ -3,6 +3,7 @@ import {
   addTask as addTaskOp,
   appendImportedTasks,
   clearArchive as clearArchiveOp,
+  clearActiveTasks as clearActiveTasksOp,
   clearArchiveEarlier as clearArchiveEarlierOp,
   deleteTask as deleteTaskOp,
   moveTaskToDay,
@@ -12,12 +13,21 @@ import {
 } from '../core/task-ops.js';
 import { groupArchiveTasks } from '../core/archive.js';
 import { getVisibleDayTasks } from '../core/task-selectors.js';
-import { bindStorageFlush, loadTasks, scheduleSaveTasks, subscribeToStorage } from '../services/storage.js';
+import {
+  bindStorageFlush,
+  hasStoredTasksPayload,
+  loadTasks,
+  saveTasks,
+  scheduleSaveTasks,
+  setStorageErrorHandler,
+  subscribeToStorage
+} from '../services/storage.js';
 import { exportTasksToFile, readTasksFile } from '../services/transfer.js';
+import { createDemoTasks, hasSeededDemoBefore, markDemoSeedUsed } from '../services/demo-seed.js';
 import { openTelegram } from '../services/telegram.js';
 import { applyTheme } from '../services/theme.js';
 import { dom } from '../ui/dom.js';
-import { showToast } from '../ui/toasts.js';
+import { LONG_DURATION, showToast } from '../ui/toasts.js';
 import {
   closeConfirmModal,
   closeDayModal,
@@ -30,15 +40,28 @@ import {
   refreshDayModal
 } from '../ui/modals.js';
 import { renderApp } from '../ui/render.js';
-import { state, setCompactMode, setFilter, setSearchQuery, setTasks } from './state.js';
+import {
+  buildTasksFingerprint,
+  state,
+  setCompactMode,
+  setFilter,
+  setFocusMode,
+  setSearchQuery,
+  setShowOnboarding,
+  setTasks
+} from './state.js';
 import { normalizeSearchQuery, validateTitle } from '../shared/utils.js';
-import { COMPACT_MODE_KEY, LONG_PRESS_MS, SAVE_DELAY, THEME_KEY } from '../shared/config.js';
+import {
+  COMPACT_MODE_KEY,
+  FOCUS_MODE_KEY,
+  ONBOARDING_DISMISSED_KEY,
+  SAVE_DELAY,
+  THEME_KEY
+} from '../shared/config.js';
+import { buildStats } from '../core/stats.js';
 
 const pendingToggleIds = new Set();
-
-function tasksSignature(tasks) {
-  return JSON.stringify(tasks);
-}
+let completionPulseTimer = 0;
 
 function syncPresetUi() {
   const currentCategory = dom.taskCatSelect?.value || 'Дом';
@@ -93,6 +116,21 @@ function syncCompactUi() {
   dom.compactToggleBtn.textContent = 'Compact';
 }
 
+function syncFocusUi() {
+  dom.body.classList.toggle('focus-mode', state.focusMode);
+  if (!dom.focusToggleBtn) return;
+  dom.focusToggleBtn.classList.toggle('active', state.focusMode);
+  dom.focusToggleBtn.setAttribute('aria-pressed', String(state.focusMode));
+}
+
+function syncOnboardingUi() {
+  if (!dom.onboardingPanel) return;
+  const isVisible = Boolean(state.showOnboarding);
+  dom.onboardingPanel.hidden = !isVisible;
+  dom.onboardingPanel.classList.toggle('is-hidden', !isVisible);
+  dom.onboardingPanel.setAttribute('aria-hidden', String(!isVisible));
+}
+
 function persistAndRender() {
   scheduleSaveTasks(state.tasks, SAVE_DELAY);
   renderApp();
@@ -101,6 +139,8 @@ function persistAndRender() {
   syncSearchUi();
   syncPresetUi();
   syncCompactUi();
+  syncFocusUi();
+  syncOnboardingUi();
 }
 
 function focusTaskInput() {
@@ -116,20 +156,85 @@ function markRecentTask(taskId) {
   }, 1200);
 }
 
+function clearDemoSessionHint() {
+  if (state.seededDemoSession) {
+    state.seededDemoSession = false;
+  }
+}
+
+function buildCompletionPraise(stats) {
+  const streakDays = stats?.momentum?.streakDays || 0;
+  const completedToday = stats?.momentum?.completedToday || 0;
+  const rhythmLabel = stats?.insights?.rhythm?.label || 'Старт';
+  if (streakDays >= 7) {
+    return `Это уже система. ${rhythmLabel} и серия ${streakDays} дн.`;
+  }
+  if (streakDays >= 3) {
+    return `Хороший ход. ${rhythmLabel}, серия ${streakDays} дн.`;
+  }
+  if (completedToday >= 5) {
+    return `Сильный день. Уже закрыто ${completedToday}, уровень: ${rhythmLabel}.`;
+  }
+  if (completedToday >= 2) {
+    return `Темп растёт. Сегодня закрыто ${completedToday}, уровень: ${rhythmLabel}.`;
+  }
+  return `Чисто. Первый шаг сделан, уровень: ${rhythmLabel}.`;
+}
+
+function playCompletionPulse() {
+  if (!dom.body) return;
+  dom.body.classList.remove('completion-pulse');
+  void dom.body.offsetWidth;
+  dom.body.classList.add('completion-pulse');
+  if (completionPulseTimer) {
+    clearTimeout(completionPulseTimer);
+  }
+  completionPulseTimer = window.setTimeout(() => {
+    dom.body.classList.remove('completion-pulse');
+    completionPulseTimer = 0;
+  }, 720);
+}
+
 export function initializeState() {
-  setTasks(loadTasks());
+  setStorageErrorHandler(showToast);
+  const hasStoredPayload = hasStoredTasksPayload();
+  const loadedTasks = loadTasks();
+  if (!hasStoredPayload && !loadedTasks.length && !hasSeededDemoBefore()) {
+    const demoTasks = createDemoTasks();
+    state.seededDemoSession = true;
+    setTasks(demoTasks);
+    markDemoSeedUsed();
+    saveTasks(demoTasks);
+    showToast('Стартовая неделя загружена. Можешь сразу попробовать трекер вживую.', 'info', 'Быстрый старт');
+  } else {
+    state.seededDemoSession = false;
+    setTasks(loadedTasks);
+  }
   try {
     setCompactMode(localStorage.getItem(COMPACT_MODE_KEY) === '1');
   } catch {
     setCompactMode(false);
+  }
+  try {
+    setFocusMode(localStorage.getItem(FOCUS_MODE_KEY) === '1');
+  } catch {
+    setFocusMode(false);
+  }
+  try {
+    setShowOnboarding(localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== '1');
+  } catch {
+    setShowOnboarding(true);
   }
   syncFilterButtons(state.activeFilter);
   syncAddButtonState();
   syncSearchUi();
   syncPresetUi();
   syncCompactUi();
+  syncFocusUi();
+  syncOnboardingUi();
   subscribeToStorage((nextTasks) => {
-    if (tasksSignature(nextTasks) === tasksSignature(state.tasks)) return;
+    const nextSignature = buildTasksFingerprint(nextTasks);
+    if (nextSignature === state.tasksFingerprint) return;
     setTasks(nextTasks);
     renderApp();
     refreshDayModal();
@@ -158,6 +263,7 @@ export async function addTask() {
   });
 
   setTasks(addTaskOp(state.tasks, task));
+  clearDemoSessionHint();
   markRecentTask(task.id);
   dom.taskInput.value = '';
   dom.taskPriSelect.value = 'normal';
@@ -178,6 +284,7 @@ export function duplicateTask(taskId) {
   });
 
   setTasks(addTaskOp(state.tasks, task));
+  clearDemoSessionHint();
   markRecentTask(task.id);
   dom.taskDaySelect.value = task.day;
   dom.taskCatSelect.value = task.cat;
@@ -197,17 +304,26 @@ export async function toggleTask(taskId, element = null) {
     const result = toggleTaskDone(state.tasks, taskId, Date.now());
     pendingToggleIds.delete(taskId);
     if (!result.changed) {
+      element?.classList.remove('closing');
       element?.classList.remove('is-pending');
       element?.removeAttribute('aria-busy');
       return;
     }
     const toggled = result.tasks.find((task) => task.id === taskId);
+    const stats = buildStats(result.tasks, state.activeFilter, state.searchQuery);
     setTasks(result.tasks);
+    clearDemoSessionHint();
     persistAndRender();
+    if (toggled?.done) {
+      playCompletionPulse();
+    }
     showToast(
-      toggled?.done ? 'Отправлено в архив.' : 'Восстановлено.',
+      toggled?.done
+        ? buildCompletionPraise(stats)
+        : 'Восстановлено.',
       'success',
-      toggled?.done ? 'Выполнено' : 'Возвращено'
+      toggled?.done ? 'Выполнено' : 'Возвращено',
+      toggled?.done ? { duration: LONG_DURATION } : undefined
     );
     element?.classList.remove('is-pending');
     element?.removeAttribute('aria-busy');
@@ -233,6 +349,7 @@ export async function deleteTask(taskId) {
   const result = deleteTaskOp(state.tasks, taskId);
   if (!result.changed) return;
   setTasks(result.tasks);
+  clearDemoSessionHint();
   persistAndRender();
   showToast('Задача удалена.', 'success', 'Удалено');
 }
@@ -253,6 +370,7 @@ export async function editTask(taskId) {
   const update = updateTaskTitle(state.tasks, taskId, result.value);
   if (!update.changed) return;
   setTasks(update.tasks);
+  clearDemoSessionHint();
   persistAndRender();
   showToast('Задача обновлена.', 'success', 'Сохранено');
 }
@@ -261,7 +379,6 @@ export async function openTaskSheet(taskId) {
   const task = state.tasks.find((item) => item.id === taskId);
   if (!task) return;
   if (dom.dayModalRoot.classList.contains('show')) {
-    state.openedDayModalId = null;
     closeDayModal(null);
   }
   const action = await openTaskModal(task);
@@ -281,22 +398,6 @@ export async function openTaskSheet(taskId) {
   if (action === 'delete') {
     await deleteTask(taskId);
   }
-}
-
-export function startLongPress(taskId) {
-  cancelLongPress();
-  state.longPressTriggered = false;
-  state.longPressTimer = window.setTimeout(() => {
-    state.longPressTimer = 0;
-    state.longPressTriggered = true;
-    editTask(taskId);
-  }, LONG_PRESS_MS);
-}
-
-export function cancelLongPress() {
-  if (!state.longPressTimer) return;
-  clearTimeout(state.longPressTimer);
-  state.longPressTimer = 0;
 }
 
 export async function clearArchive() {
@@ -320,8 +421,35 @@ export async function clearArchive() {
   const result = clearArchiveOp(state.tasks);
   if (!result.changed) return;
   setTasks(result.tasks);
+  clearDemoSessionHint();
   persistAndRender();
   showToast('Архив очищен.', 'success', 'Готово');
+}
+
+export async function clearActiveTasks() {
+  const activeCount = state.tasks.filter((task) => !task.done).length;
+  if (!activeCount) {
+    showToast('Активных задач уже нет.', 'info', 'Список');
+    return;
+  }
+
+  const confirmed = await openConfirmModal({
+    kicker: 'Сброс недели',
+    title: 'Очистить все активные задачи?',
+    text: `Будут удалены все активные задачи: ${activeCount}. Архив останется нетронутым.`,
+    buttons: [
+      { label: 'Отмена', value: false, className: 'ghost' },
+      { label: 'Очистить активные', value: true, className: 'danger' }
+    ]
+  });
+
+  if (!confirmed) return;
+  const result = clearActiveTasksOp(state.tasks);
+  if (!result.changed) return;
+  setTasks(result.tasks);
+  clearDemoSessionHint();
+  persistAndRender();
+  showToast('Активные задачи очищены.', 'success', 'Готово');
 }
 
 export async function clearArchiveEarlier() {
@@ -346,6 +474,7 @@ export async function clearArchiveEarlier() {
   const result = clearArchiveEarlierOp(state.tasks);
   if (!result.changed) return;
   setTasks(result.tasks);
+  clearDemoSessionHint();
   persistAndRender();
   showToast('Старые записи архива удалены.', 'success', 'Архив');
 }
@@ -362,11 +491,13 @@ export function applyFilter(filterValue) {
 export async function importFromFile(file) {
   if (!file) return;
   try {
-    const tasks = await readTasksFile(file);
+    const { tasks, skippedCount, sourceCount } = await readTasksFile(file);
     const mode = await openConfirmModal({
       kicker: 'Импорт JSON',
       title: 'Как импортировать задачи?',
-      text: `Найдено задач: ${tasks.length}`,
+      text: skippedCount
+        ? `Корректных задач: ${tasks.length} из ${sourceCount}. Пропущено записей: ${skippedCount}.`
+        : `Найдено задач: ${tasks.length}`,
       buttons: [
         { label: 'Отмена', value: 'cancel', className: 'ghost' },
         { label: 'Добавить к текущим', value: 'append', className: 'primary' },
@@ -384,9 +515,16 @@ export async function importFromFile(file) {
     } else {
       setTasks(appendImportedTasks(state.tasks, tasks));
     }
+    clearDemoSessionHint();
 
     persistAndRender();
-    showToast(`Импорт завершён: ${tasks.length} задач.`, 'success', 'Import');
+    showToast(
+      skippedCount
+        ? `Импорт завершён: ${tasks.length} задач, пропущено ${skippedCount}.`
+        : `Импорт завершён: ${tasks.length} задач.`,
+      skippedCount ? 'warning' : 'success',
+      'Import'
+    );
   } catch (error) {
     showToast(error.message || 'Ошибка импорта.', 'error', 'Import');
   } finally {
@@ -403,13 +541,13 @@ export function moveTask(taskId, dayId) {
   const result = moveTaskToDay(state.tasks, taskId, dayId);
   if (!result.changed) return;
   setTasks(result.tasks);
+  clearDemoSessionHint();
   dom.taskDaySelect.value = dayId;
   persistAndRender();
   showToast('Задача перенесена.', 'success', 'Перемещено');
 }
 
 export function openDay(dayId) {
-  state.openedDayModalId = dayId;
   openDayModal(dayId);
 }
 
@@ -482,6 +620,26 @@ export function toggleCompactMode() {
   showToast(nextMode ? 'Включён компактный режим.' : 'Возвращён обычный режим.', 'info', 'Вид');
 }
 
+export function toggleFocusMode(nextValue = null) {
+  const nextMode = typeof nextValue === 'boolean' ? nextValue : !state.focusMode;
+  setFocusMode(nextMode);
+  try {
+    localStorage.setItem(FOCUS_MODE_KEY, nextMode ? '1' : '0');
+  } catch {}
+  syncFocusUi();
+  showToast(nextMode ? 'Включён Focus mode.' : 'Возвращён полный вид.', 'info', 'Фокус');
+}
+
+export function dismissOnboarding() {
+  if (!state.showOnboarding) return;
+  setShowOnboarding(false);
+  try {
+    localStorage.setItem(ONBOARDING_DISMISSED_KEY, '1');
+  } catch {}
+  syncOnboardingUi();
+  showToast('Подсказка скрыта. При желании Focus можно включить в верхней панели.', 'info', 'Готово');
+}
+
 export function handleApplyPreset({ cat = '', pri = '' } = {}) {
   if (cat) dom.taskCatSelect.value = cat;
   if (pri) dom.taskPriSelect.value = pri;
@@ -507,7 +665,6 @@ export function closeTask(value = null) {
 }
 
 export function closeDay(value = null) {
-  state.openedDayModalId = null;
   closeDayModal(value);
 }
 
@@ -540,6 +697,8 @@ export function runInitialRender() {
   syncSearchUi();
   syncPresetUi();
   syncCompactUi();
+  syncFocusUi();
+  syncOnboardingUi();
 }
 
 export { focusTaskInput };

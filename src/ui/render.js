@@ -50,16 +50,6 @@ function getDayHint(dayId, hasAllTasks, hasVisibleTasks) {
   return 'Скрыто текущими условиями просмотра';
 }
 
-function getBusiestDayMeta(stats) {
-  return daysShort.reduce((best, dayId, index) => {
-    const count = stats.activeByDay[dayId]?.length || 0;
-    if (!best || count > best.count) {
-      return { dayId, count, label: dayNames[index] || dayId };
-    }
-    return best;
-  }, null);
-}
-
 function createFocusChip({ label, tone = '', title = '', onClick = null }) {
   const button = document.createElement('button');
   button.type = 'button';
@@ -74,19 +64,38 @@ function createFocusChip({ label, tone = '', title = '', onClick = null }) {
   return button;
 }
 
+function trimFocusLabel(value, max = 28) {
+  const text = String(value || '').trim();
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1).trimEnd()}…`;
+}
+
 function renderFocusStrip(stats) {
   if (!dom.focusStrip) return;
 
   const todayTasks = stats.activeByDay[state.currentDayId] || [];
   const todayVisible = stats.visibleActiveByDay[state.currentDayId] || [];
   const todayUrgent = todayTasks.filter((task) => task.pri === 'urgent').length;
-  const busiest = getBusiestDayMeta(stats);
   const archiveGroups = groupArchiveTasks(stats.archiveVisible);
+  const rhythm = stats.insights?.rhythm;
+  const nextFocusTask = stats.insights?.nextFocusTask;
+  const staleCount = stats.insights?.staleCount || 0;
+  const stalestTask = stats.insights?.stalestTask;
   const fragment = document.createDocumentFragment();
+
+  if (state.seededDemoSession) {
+    fragment.appendChild(createFocusChip({
+      label: 'Стартовый набор загружен',
+      tone: 'demo',
+      title: 'Это демо-задачи для быстрого старта. Их можно менять или удалить.'
+    }));
+  }
 
   fragment.appendChild(createFocusChip({
     label: todayVisible.length
-      ? `Сегодня: ${todayVisible.length} ${pluralizeTasks(todayVisible.length)}`
+      ? todayUrgent
+        ? `Сегодня: ${todayVisible.length} ${pluralizeTasks(todayVisible.length)} · ${todayUrgent} срочн.`
+        : `Сегодня: ${todayVisible.length} ${pluralizeTasks(todayVisible.length)}`
       : 'Сегодня: спокойное окно',
     tone: 'current',
     title: 'Быстрый фокус на текущем дне',
@@ -94,22 +103,32 @@ function renderFocusStrip(stats) {
   }));
 
   fragment.appendChild(createFocusChip({
-    label: todayUrgent
-      ? `Срочно сегодня: ${todayUrgent}`
-      : 'Срочных сегодня нет',
-    tone: todayUrgent ? 'urgent' : 'calm',
-    title: todayUrgent ? 'Показать срочные задачи с фокусом на сегодня' : 'Сегодня можно работать ровно',
-    onClick: todayUrgent ? callbacks.onFocusUrgentToday : null
+    label: rhythm ? `Уровень: ${rhythm.label}` : 'Уровень: Старт',
+    tone: rhythm?.tone || 'level-low',
+    title: rhythm
+      ? `Текущий темп по завершённым задачам и серии дней: ${rhythm.label}`
+      : 'Текущий рабочий темп'
   }));
 
-  if (busiest?.count) {
+  if (nextFocusTask) {
     fragment.appendChild(createFocusChip({
-      label: `Пик недели: ${busiest.label} · ${busiest.count}`,
-      tone: busiest.dayId === state.currentDayId ? 'current' : 'busy',
-      title: `Открыть задачи за ${busiest.label}`,
-      onClick: () => callbacks.onOpenDay(busiest.dayId)
+      label: `Следом: ${trimFocusLabel(nextFocusTask.title)}`,
+      tone: nextFocusTask.pri === 'urgent' ? 'urgent' : 'focus',
+      title: `Следующий лучший фокус: ${nextFocusTask.title}`,
+      onClick: () => callbacks.onOpenDay(nextFocusTask.day)
     }));
   }
+
+  fragment.appendChild(createFocusChip({
+    label: staleCount > 0
+      ? `Хвосты: ${staleCount} старше 3д`
+      : 'Хвостов старше 3д нет',
+    tone: staleCount > 0 ? 'stale' : 'done',
+    title: staleCount > 0
+      ? 'Есть задачи, которые висят дольше трёх дней'
+      : 'Старые хвосты не копятся',
+    onClick: staleCount > 0 && stalestTask ? () => callbacks.onOpenDay(stalestTask.day) : null
+  }));
 
   const archiveSummary = [];
   if (archiveGroups.today.length) archiveSummary.push(`архив сегодня ${archiveGroups.today.length}`);
@@ -247,8 +266,23 @@ function renderWeekStats(stats) {
     const categoryStats = stats.byCat[category];
     if (!meta || !categoryStats) continue;
     const progress = categoryStats.total ? categoryStats.done / categoryStats.total : 0;
+    const ringValue = `${categoryStats.done}/${categoryStats.total}`;
+    const ringValueLength = ringValue.length;
     meta.ring.style.strokeDashoffset = String(RING_CIRC * (1 - progress));
-    setText(meta.value, `${categoryStats.done}/${categoryStats.total}`);
+    meta.value.dataset.size = ringValueLength >= 9 ? 'micro' : ringValueLength >= 7 ? 'compact' : 'default';
+    meta.value.dataset.layout = ringValueLength >= 7 ? 'stack' : 'inline';
+    meta.value.title = `${categoryStats.done} из ${categoryStats.total}`;
+    if (ringValueLength >= 7) {
+      const main = document.createElement('span');
+      main.className = 'ring-value-main';
+      main.textContent = String(categoryStats.done);
+      const sub = document.createElement('span');
+      sub.className = 'ring-value-sub';
+      sub.textContent = `/ ${categoryStats.total}`;
+      meta.value.replaceChildren(main, sub);
+    } else {
+      setText(meta.value, ringValue);
+    }
   }
 }
 

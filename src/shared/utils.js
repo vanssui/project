@@ -32,19 +32,10 @@ export function generateId() {
   return Date.now() * 1000 + idSeed;
 }
 
-export function noop() {}
-
 export function pluralizeTasks(count) {
   const mod10 = count % 10;
   const mod100 = count % 100;
   if (mod10 === 1 && mod100 !== 11) return 'задача';
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'задачи';
   return 'задач';
-}
-
-export function requestIdle(callback) {
-  if (typeof window.requestIdleCallback === 'function') {
-    return window.requestIdleCallback(callback, { timeout: 500 });
-  }
-  return window.setTimeout(callback, 32);
 }

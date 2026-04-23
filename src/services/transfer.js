@@ -52,11 +52,23 @@ export function readTasksFile(file) {
         if (!Array.isArray(source)) throw new Error('Список задач не найден.');
         if (source.length > IMPORT_LIMIT) throw new Error(`Слишком много задач (лимит ${IMPORT_LIMIT}).`);
         const normalized = [];
+        let skippedCount = 0;
         for (let index = 0; index < source.length; index += 1) {
           const task = normalizeTask(source[index], getCurrentDayId(), index);
-          if (task) normalized.push(task);
+          if (task) {
+            normalized.push(task);
+          } else {
+            skippedCount += 1;
+          }
         }
-        resolve(normalized);
+        if (!normalized.length) {
+          throw new Error('Не найдено ни одной корректной задачи для импорта.');
+        }
+        resolve({
+          tasks: normalized,
+          sourceCount: source.length,
+          skippedCount
+        });
       } catch (error) {
         reject(error);
       }

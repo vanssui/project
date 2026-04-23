@@ -9,19 +9,25 @@ export function bindEvents(handlers) {
 
   dom.taskForm?.addEventListener('submit', submitTask);
   dom.exportBtn.addEventListener('click', handlers.onExport);
+  dom.manualBtn?.addEventListener('click', handlers.onOpenManual);
   dom.clearArchiveBtn.addEventListener('click', handlers.onClearArchive);
+  dom.clearActiveBtn?.addEventListener('click', handlers.onClearActive);
   dom.clearOlderArchiveBtn?.addEventListener('click', handlers.onClearArchiveEarlier);
   dom.telegramBtn?.addEventListener('click', handlers.onOpenTelegram);
   dom.todayBtn?.addEventListener('click', handlers.onScrollToToday);
   dom.compactToggleBtn?.addEventListener('click', handlers.onToggleCompact);
+  dom.focusToggleBtn?.addEventListener('click', handlers.onToggleFocusMode);
   dom.clearSearchBtn?.addEventListener('click', handlers.onClearSearch);
+  dom.dismissOnboardingBtn?.addEventListener('click', handlers.onDismissOnboarding);
   dom.modalBackdrop.addEventListener('click', () => handlers.onCloseConfirm(null));
   dom.editModalBackdrop.addEventListener('click', () => handlers.onCloseEdit(null));
   dom.taskModalBackdrop.addEventListener('click', () => handlers.onCloseTask(null));
   dom.dayModalBackdrop.addEventListener('click', () => handlers.onCloseDay(null));
+  dom.manualModalBackdrop?.addEventListener('click', () => handlers.onCloseManual());
   dom.editCancelBtn.addEventListener('click', () => handlers.onCloseEdit(null));
   dom.editSaveBtn.addEventListener('click', handlers.onSubmitEdit);
   dom.dayModalCloseBtn.addEventListener('click', () => handlers.onCloseDay(null));
+  dom.manualCloseBtn?.addEventListener('click', () => handlers.onCloseManual());
 
   dom.taskInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
@@ -57,6 +63,7 @@ export function bindEvents(handlers) {
     if (dom.taskModalRoot.classList.contains('show')) return handlers.onCloseTask(null);
     if (dom.editModalRoot.classList.contains('show')) return handlers.onCloseEdit(null);
     if (dom.dayModalRoot.classList.contains('show')) return handlers.onCloseDay(null);
+    if (dom.manualModalRoot?.classList.contains('show')) return handlers.onCloseManual();
     if (dom.modalRoot.classList.contains('show')) return handlers.onCloseConfirm(null);
   });
 

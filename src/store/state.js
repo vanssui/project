@@ -3,25 +3,36 @@ export const state = {
   activeFilter: 'all',
   searchQuery: '',
   tasks: [],
+  tasksFingerprint: '',
   draggedTaskId: null,
-  openedDayModalId: null,
-  longPressTimer: 0,
-  longPressTriggered: false,
   lastClockMinute: '',
   lastClockSecond: '',
   currentTheme: 'dark',
-  canvasWidth: 0,
-  canvasHeight: 0,
-  dpr: 1,
-  resizeRaf: 0,
-  particles: [],
-  isBusy: false,
   compactMode: false,
-  recentTaskId: null
+  recentTaskId: null,
+  seededDemoSession: false,
+  focusMode: false,
+  showOnboarding: false
 };
+
+export function buildTasksFingerprint(tasks) {
+  return tasks
+    .map((task) => [
+      task.id,
+      task.title,
+      task.day,
+      task.cat,
+      task.pri,
+      task.done ? 1 : 0,
+      task.completedAt || 0,
+      task.createdAt || 0
+    ].join('|'))
+    .join('||');
+}
 
 export function setTasks(tasks) {
   state.tasks = tasks;
+  state.tasksFingerprint = buildTasksFingerprint(tasks);
 }
 
 export function setFilter(filter) {
@@ -34,4 +45,12 @@ export function setSearchQuery(query) {
 
 export function setCompactMode(compactMode) {
   state.compactMode = compactMode;
+}
+
+export function setFocusMode(focusMode) {
+  state.focusMode = focusMode;
+}
+
+export function setShowOnboarding(showOnboarding) {
+  state.showOnboarding = showOnboarding;
 }

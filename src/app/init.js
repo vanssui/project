@@ -4,7 +4,7 @@ import { state } from '../store/state.js';
 import { dom } from '../ui/dom.js';
 import { bindEvents } from '../ui/events.js';
 import { createTaskElement, setTaskViewHandlers } from '../ui/task-view.js';
-import { setModalAdapters } from '../ui/modals.js';
+import { closeManualModal, openManualModal, setModalAdapters } from '../ui/modals.js';
 import { setRenderCallbacks } from '../ui/render.js';
 import { applyTheme, getPreferredTheme } from '../services/theme.js';
 import { applyAmbientQuote } from '../services/ambient-quote.js';
@@ -13,15 +13,17 @@ import {
   addTask,
   applyFilter,
   clearArchive,
+  clearActiveTasks,
   clearArchiveEarlier,
   closeConfirm,
   closeDay,
   closeEdit,
   closeTask,
   clearSearch,
-  deleteTask,
-  editTask,
-  exportTasks,
+	  deleteTask,
+	  dismissOnboarding,
+	  editTask,
+	  exportTasks,
   focusTaskInput,
   getDayTasks,
   handleApplyPreset,
@@ -40,9 +42,10 @@ import {
   scrollToToday,
   focusUrgentToday,
   submitEdit,
-  toggleCompactMode,
-  toggleTask
-} from '../store/actions.js';
+	  toggleCompactMode,
+	  toggleFocusMode,
+	  toggleTask
+	} from '../store/actions.js';
 
 let clockMain = null;
 let clockSeconds = null;
@@ -120,13 +123,16 @@ function initHandlers() {
   bindEvents({
     onAddTask: addTask,
     onExport: exportTasks,
+    onOpenManual: openManualModal,
     onClearArchive: clearArchive,
+    onClearActive: clearActiveTasks,
     onClearArchiveEarlier: clearArchiveEarlier,
     onOpenTelegram: handleOpenTelegram,
     onCloseConfirm: closeConfirm,
     onCloseEdit: closeEdit,
     onCloseTask: closeTask,
     onCloseDay: closeDay,
+    onCloseManual: closeManualModal,
     onSubmitEdit: submitEdit,
     onSetFilter: applyFilter,
     onImport: importFromFile,
@@ -134,10 +140,12 @@ function initHandlers() {
     onTaskPriorityChange: handleTaskPriorityChange,
     onSearchChange: handleSearchChange,
     onClearSearch: clearSearch,
-    onScrollToToday: scrollToToday,
-    onToggleCompact: toggleCompactMode,
-    onApplyPreset: handleApplyPreset,
-    onThemeChange: (theme) => handleThemeChange(theme, true),
+	    onScrollToToday: scrollToToday,
+	    onToggleCompact: toggleCompactMode,
+	    onToggleFocusMode: toggleFocusMode,
+	    onApplyPreset: handleApplyPreset,
+	    onDismissOnboarding: dismissOnboarding,
+	    onThemeChange: (theme) => handleThemeChange(theme, true),
     onSystemThemeChange: handleSystemThemeChange,
     onDropTask: moveTask
   });

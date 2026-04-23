@@ -2,6 +2,7 @@ import { dom } from './dom.js';
 
 const MAX_STACK = 3;
 const DURATION = 2600;
+const LONG_DURATION = 4200;
 const pool = new Map();
 
 function makeKey(type, message) {
@@ -25,13 +26,14 @@ function hideToast(key, immediate = false) {
   }, { once: true });
 }
 
-export function showToast(message, type = 'info', title = '') {
+export function showToast(message, type = 'info', title = '', options = {}) {
   const labels = {
     success: title || 'Успешно',
     error: title || 'Ошибка',
     info: title || 'Информация',
     warning: title || 'Внимание'
   };
+  const duration = Number.isFinite(options.duration) ? options.duration : DURATION;
 
   const key = makeKey(type, message);
   if (pool.has(key)) {
@@ -39,7 +41,7 @@ export function showToast(message, type = 'info', title = '') {
     item.count += 1;
     item.text.textContent = `${String(message)} ×${item.count}`;
     clearTimeout(item.timer);
-    item.timer = setTimeout(() => hideToast(key), DURATION);
+    item.timer = setTimeout(() => hideToast(key), duration);
     return;
   }
 
@@ -74,7 +76,7 @@ export function showToast(message, type = 'info', title = '') {
 
   requestAnimationFrame(() => el.classList.add('show'));
 
-  const timer = setTimeout(() => hideToast(key), DURATION);
+  const timer = setTimeout(() => hideToast(key), duration);
   closeButton.addEventListener('click', () => {
     clearTimeout(timer);
     hideToast(key);
@@ -87,3 +89,5 @@ export function showToast(message, type = 'info', title = '') {
     count: 1
   });
 }
+
+export { LONG_DURATION };
